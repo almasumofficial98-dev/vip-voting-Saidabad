@@ -630,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = idInput.value.trim();
         const password = passInput.value;
 
-        if (id === 'ashken' && password === 'kenash') {
+        if (id === 'saidabad' && password === 'ashken') {
             localStorage.setItem("vip_authenticated", "true");
             document.getElementById('login-modal').style.display = 'none';
             currentView = 'student-vote';
@@ -651,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = idInput.value.trim();
         const password = passInput.value;
 
-        if (id === 'qwerty' && password === 'ytrewq') {
+        if (id === 'vip' && password === 'qwerty') {
             localStorage.setItem("vip_staff_authenticated", "true");
             document.getElementById('admin-login-modal').style.display = 'none';
             errorMsg.style.display = 'none';
