@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIP Student Council Elections 2026-27</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="favicon.avif">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Lottie Files Web Component -->
+    <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.9.14/dist/dotlottie-wc.js" type="module"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Success Animation Modal (Hidden by default) -->
+    <div id="success-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="background: transparent; border: none; box-shadow: none;">
+            <dotlottie-wc src="https://lottie.host/4bb5d76f-478b-4c9a-a4b1-9fc8c90cf7be/cL6WbQoNQH.lottie"
+                style="width: 300px; height: 300px; margin: 0 auto;" autoplay loop></dotlottie-wc>
+            <h2
+                style="font-family: var(--font-display); color: #10b981; margin-top: 1.5rem; font-size: 2.2rem; text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);">
+                Vote Recorded!</h2>
+        </div>
+    </div>
+
+    <!-- Confirm Voste Modal (Hidden by default) -->
+    <div id="confirm-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 480px; padding: 2.5rem 2rem; box-shadow: var(--shadow-lg);">
+            <h2
+                style="font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; margin-bottom: 1.25rem; color: var(--text-primary);">
+                Confirm Your Vote</h2>
+            <p style="color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6; margin-bottom: 2rem;">
+                Are you sure you want to cast your vote for <strong id="confirm-candidate-name"
+                    style="color: var(--accent-primary); font-weight: 700;">[Candidate Name]</strong> for the role of
+                <strong id="confirm-position-name"
+                    style="color: var(--text-primary); font-weight: 700;">[Position]</strong>?
+            </p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button id="confirm-cancel-btn" class="nav-btn"
+                    style="border: 1px solid var(--border-color); width: 120px; font-weight: 600; border-radius: 12px; padding: 0.75rem;">Cancel</button>
+                <button id="confirm-ok-btn" class="vote-btn"
+                    style="margin-top: 0; width: 160px; border-radius: 12px; padding: 0.75rem;">Confirm Vote</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Reset Modal (Hidden by default) -->
+    <div id="reset-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 480px; padding: 2.5rem 2rem; box-shadow: var(--shadow-lg);">
+            <h2
+                style="font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; margin-bottom: 1.25rem; color: #dc2626; display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    style="color: #dc2626;">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Reset Database?
+            </h2>
+            <p style="color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6; margin-bottom: 2rem;">
+                Are you absolutely sure you want to reset the database? This action will set <strong>all votes to zero
+                    (0)</strong> and update Firebase. This cannot be undone.
+            </p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button id="reset-cancel-btn" class="nav-btn"
+                    style="border: 1px solid var(--border-color); width: 120px; font-weight: 600; border-radius: 12px; padding: 0.75rem;">Cancel</button>
+                <button id="reset-confirm-btn" class="vote-btn"
+                    style="margin-top: 0; width: 160px; border-radius: 12px; padding: 0.75rem; background: linear-gradient(to right, #dc2626, #991b1b); box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.2);">Confirm
+                    Reset</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Login Modal (Shown if not authenticated) -->
+    <div id="login-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 400px; padding: 2.5rem 2rem; box-shadow: var(--shadow-lg);">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <img src="logo.png" alt="VIP's International School Logo"
+                    style="height: 80px; margin-bottom: 1rem; object-fit: contain;">
+                <h2
+                    style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em;">
+                    Voter Portal Login
+                </h2>
+                <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 0.5rem;">
+                    Please enter credentials to unlock the voting system.
+                </p>
+            </div>
+
+            <form id="login-form" onsubmit="window.handleLogin(event)"
+                style="display: flex; flex-direction: column; gap: 1.25rem; text-align: left;">
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label for="login-id"
+                        style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-sans);">Voter
+                        Portal ID</label>
+                    <input type="text" id="login-id" required placeholder="Enter ID"
+                        style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 12px; font-family: var(--font-sans); font-size: 0.95rem; outline: none; transition: border-color 0.2s;">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label for="login-password"
+                        style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-sans);">Password</label>
+                    <input type="password" id="login-password" required placeholder="Enter Password"
+                        style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 12px; font-family: var(--font-sans); font-size: 0.95rem; outline: none; transition: border-color 0.2s;">
+                </div>
+
+                <div id="login-error"
+                    style="color: #dc2626; font-size: 0.85rem; font-weight: 600; display: none; text-align: center; margin-top: 0.25rem; align-items: center; justify-content: center; gap: 0.25rem;">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                        style="flex-shrink: 0;">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Invalid ID or Password.
+                </div>
+
+                <button type="submit" class="vote-btn"
+                    style="margin-top: 0.5rem; padding: 0.75rem; border-radius: 12px; font-size: 1rem; font-weight: 600;">
+                    Authenticate
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin/Staff Login Modal (Shown when accessing Staff Voting or Dashboard) -->
+    <div id="admin-login-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 400px; padding: 2.5rem 2rem; box-shadow: var(--shadow-lg);">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h2
+                    style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                        style="color: var(--accent-primary);">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Admin Verification
+                </h2>
+                <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 0.5rem;">
+                    Staff Voting and Dashboard require elevated permissions.
+                </p>
+            </div>
+
+            <form id="admin-login-form" onsubmit="window.handleAdminLogin(event)"
+                style="display: flex; flex-direction: column; gap: 1.25rem; text-align: left;">
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label for="admin-login-id"
+                        style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-sans);">Admin
+                        ID</label>
+                    <input type="text" id="admin-login-id" required placeholder="Enter Admin ID"
+                        style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 12px; font-family: var(--font-sans); font-size: 0.95rem; outline: none; transition: border-color 0.2s;">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label for="admin-login-password"
+                        style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-sans);">Password</label>
+                    <input type="password" id="admin-login-password" required placeholder="Enter Password"
+                        style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 12px; font-family: var(--font-sans); font-size: 0.95rem; outline: none; transition: border-color 0.2s;">
+                </div>
+
+                <div id="admin-login-error"
+                    style="color: #dc2626; font-size: 0.85rem; font-weight: 600; display: none; text-align: center; margin-top: 0.25rem; align-items: center; justify-content: center; gap: 0.25rem;">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                        style="flex-shrink: 0;">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Invalid Admin credentials.
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 0.5rem;">
+                    <button type="button" class="nav-btn" onclick="window.cancelAdminLogin()"
+                        style="border: 1px solid var(--border-color); width: 120px; font-weight: 600; border-radius: 12px; padding: 0.75rem;">Cancel</button>
+                    <button type="submit" class="vote-btn"
+                        style="margin-top: 0; width: 160px; border-radius: 12px; padding: 0.75rem; font-weight: 600;">Verify</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="app" style="display: none;">
+
+
+        <header class="navbar">
+            <div class="logo">
+                <img src="logo.png" alt="VIP's International School Logo" class="logo-img"
+                    onclick="window.renderHomeView()"
+                    style="height: 90px; margin: -20px 0; cursor: pointer; transition: transform 0.2s ease;">
+            </div>
+            <nav style="display: flex; gap: 1rem; align-items: center;">
+                <button id="nav-dashboard" class="nav-btn">Dashboard</button>
+                <button id="nav-student-vote" class="nav-btn active">Student Voting</button>
+                <button id="nav-staff-vote" class="nav-btn">Staff Voting</button>
+                
+                <!-- Database Switcher -->
+                <div class="db-switcher-container" style="display: flex; align-items: center; gap: 0.35rem; background: rgba(0, 0, 0, 0.03); border: 1px solid var(--border-color); padding: 0.35rem 0.75rem; border-radius: 12px; transition: all 0.2s;">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="color: var(--text-secondary);">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                    <select id="db-selector" style="background: transparent; border: none; outline: none; font-size: 0.85rem; font-weight: 700; font-family: var(--font-sans); cursor: pointer; color: var(--text-primary); padding: 0;" onchange="window.switchDatabase(this.value)">
+                        <option value="firebase">Firebase</option>
+                        <option value="supabase">Supabase</option>
+                    </select>
+                </div>
+
+                <button id="nav-logout" class="nav-btn logout-btn">Logout</button>
+            </nav>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="main-content">
+            <!-- Dynamic Content Injected Here -->
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2026 VIP Student Council Elections. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
