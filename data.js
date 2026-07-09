@@ -298,6 +298,7 @@ async function resetAllVotes() {
             const { error } = await supabaseClient
                 .from('candidates')
                 .update({ voteCount: 0 })
+                .neq('Position', 'SystemSettings')
                 .not('id', 'is', null);
             if (error) throw error;
             console.log("All student candidate votes successfully reset in Supabase!");
@@ -324,7 +325,9 @@ async function resetAllVotes() {
 
         const batch = db.batch();
         snapshot.forEach(doc => {
-            batch.update(doc.ref, { voteCount: 0 });
+            if (doc.data().Position !== 'SystemSettings') {
+                batch.update(doc.ref, { voteCount: 0 });
+            }
         });
 
         await batch.commit();
@@ -333,6 +336,103 @@ async function resetAllVotes() {
     } catch (error) {
         console.error("Error resetting votes in Firebase:", error);
         alert("Failed to reset database: " + error.message);
+        return false;
+    }
+}
+
+// 6. Voting Status Control Helpers
+function isVotingActive(allCandidates) {
+    const dbType = getActiveDatabase();
+    if (dbType === 'supabase' && !supabaseClient) {
+        return localStorage.getItem('vip_voting_active') !== 'false';
+    }
+    if (dbType === 'firebase' && firebaseConfig.apiKey === "YOUR_API_KEY") {
+        return localStorage.getItem('vip_voting_active') !== 'false';
+    }
+
+    if (!allCandidates || allCandidates.length === 0) {
+        return localStorage.getItem('vip_voting_active') !== 'false';
+    }
+
+    const settingsDoc = allCandidates.find(c => c.Position === 'SystemSettings');
+    return settingsDoc ? (settingsDoc.voteCount !== 0) : true;
+}
+
+async function toggleVotingStatus(active) {
+    const dbType = getActiveDatabase();
+    const val = active ? 1 : 0;
+    localStorage.setItem('vip_voting_active', active ? 'true' : 'false');
+
+    if (dbType === 'supabase') {
+        if (!supabaseClient) {
+            return true;
+        }
+        try {
+            // First attempt to toggle status using the secure stored procedure (bypasses RLS)
+            const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('set_voting_status', {
+                active_state: active
+            });
+
+            if (rpcErr) {
+                console.warn("RPC set_voting_status failed. Attempting direct table update as fallback...", rpcErr);
+                
+                // Fallback direct table query and update
+                const { data, error } = await supabaseClient
+                    .from('candidates')
+                    .select('*')
+                    .eq('Position', 'SystemSettings')
+                    .limit(1);
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    const { error: updErr } = await supabaseClient
+                        .from('candidates')
+                        .update({ voteCount: val })
+                        .eq('id', data[0].id);
+                    if (updErr) throw updErr;
+                } else {
+                    const { error: insErr } = await supabaseClient
+                        .from('candidates')
+                        .insert({
+                            Name: 'SystemSettings',
+                            Position: 'SystemSettings',
+                            Grade: '1.0',
+                            voteCount: val
+                        });
+                    if (insErr) throw insErr;
+                }
+            }
+            return true;
+        } catch (e) {
+            console.error("Failed to toggle voting status in Supabase:", e);
+            alert("Failed to toggle voting status: " + e.message + "\n\nIMPORTANT: Please run the SQL queries in 'supabase_setup.sql' via your Supabase SQL Editor dashboard to create the necessary stored procedure bypass.");
+            return false;
+        }
+    }
+
+    // Firebase
+    if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+        return true;
+    }
+
+    try {
+        const snapshot = await db.collection('candidates').where('Position', '==', 'SystemSettings').limit(1).get();
+        if (!snapshot.empty) {
+            const docRef = snapshot.docs[0].ref;
+            await docRef.update({ voteCount: val });
+        } else {
+            await db.collection('candidates').add({
+                Name: 'SystemSettings',
+                Position: 'SystemSettings',
+                Grade: '1.0',
+                voteCount: val
+            });
+        }
+        return true;
+    } catch (e) {
+        console.error("Failed to toggle voting status in Firebase:", e);
+        alert("Failed to toggle voting status: " + e.message);
         return false;
     }
 }

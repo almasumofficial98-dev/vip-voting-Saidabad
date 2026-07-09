@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Track live updates and log them
             if (previousData.length > 0) {
                 data.forEach(candidate => {
+                    if (candidate.Position === 'SystemSettings') return;
                     const prev = previousData.find(c => c.id === candidate.id);
                     if (prev && (candidate.voteCount || 0) > (prev.voteCount || 0)) {
                         const diff = (candidate.voteCount || 0) - (prev.voteCount || 0);
@@ -111,6 +112,22 @@ document.addEventListener('DOMContentLoaded', () => {
         mainContent.innerHTML = '<div class="loader">Loading Live Data...</div>';
     }
 
+    function renderVotingPausedView() {
+        let html = `
+            <div class="paused-container">
+                <div class="paused-icon">🔒</div>
+                <h1 style="font-family: var(--font-display); font-size: 2.25rem; font-weight: 800; color: var(--accent-primary); margin-bottom: 1rem;">Voting is Paused</h1>
+                <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.6; margin-bottom: 2rem;">
+                    The voting system has been temporarily paused by the administrator. Please wait for the election to resume.
+                </p>
+                <div style="font-size: 0.9rem; color: var(--text-secondary); background: rgba(0,0,0,0.03); padding: 0.75rem 1.25rem; border-radius: 12px; display: inline-block;">
+                    Status: <strong style="color: var(--accent-primary);">Suspended</strong>
+                </div>
+            </div>
+        `;
+        mainContent.innerHTML = html;
+    }
+
     // --- Dashboard View ---
     function renderDashboard() {
         currentView = 'dashboard';
@@ -119,7 +136,8 @@ document.addEventListener('DOMContentLoaded', () => {
         staffVoteBtn.classList.remove('active');
 
         // Calculate total vote points cast across all candidates
-        const totalVotes = allData.reduce((sum, candidate) => sum + (candidate.voteCount || 0), 0);
+        const totalVotes = allData.filter(c => c.Position !== 'SystemSettings').reduce((sum, candidate) => sum + (candidate.voteCount || 0), 0);
+        const isVotingActiveVal = isVotingActive(allData);
 
         // Ensure we have a default inspected position
         if (!inspectedPosition && CONFIG.POSITIONS_ORDER.length > 0) {
@@ -261,6 +279,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <strong style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); line-height: 1.1;">${positions.length}</strong>
                         </div>
                     </div>
+                    <button class="toggle-voting-btn ${isVotingActiveVal ? 'active' : 'stopped'}" onclick="window.promptToggleVoting()">
+                        <span class="status-dot ${isVotingActiveVal ? 'ping' : ''}"></span>
+                        ${isVotingActiveVal ? 'Stop Voting' : 'Start Voting'}
+                    </button>
                     <button class="download-pdf-btn" onclick="window.downloadVotesPDF()">
                         <svg style="vertical-align: middle; margin-right: 0.5rem;" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -306,6 +328,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Student Vote Positions Listing ---
     function renderStudentVotePositions() {
+        if (!isVotingActive(allData)) {
+            renderVotingPausedView();
+            return;
+        }
         currentView = 'student-vote';
         dashboardBtn.classList.remove('active');
         studentVoteBtn.classList.add('active');
@@ -332,6 +358,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Staff Designation Selection ---
     function renderStaffRoleSelection() {
+        if (!isVotingActive(allData)) {
+            renderVotingPausedView();
+            return;
+        }
         currentView = 'staff-vote';
         dashboardBtn.classList.remove('active');
         studentVoteBtn.classList.remove('active');
@@ -371,6 +401,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Staff Vote Positions Listing ---
     function renderStaffVotePositions() {
+        if (!isVotingActive(allData)) {
+            renderVotingPausedView();
+            return;
+        }
         if (!activeStaffRole) {
             renderStaffRoleSelection();
             return;
@@ -467,6 +501,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Candidate Voting Page ---
     window.renderPosition = function(positionName, isStaff) {
+        if (!isVotingActive(allData)) {
+            renderVotingPausedView();
+            return;
+        }
         currentView = 'position';
         activePosition = positionName;
         isActivePositionStaff = isStaff;
@@ -577,6 +615,11 @@ document.addEventListener('DOMContentLoaded', () => {
         newConfirmOkBtn.addEventListener('click', async () => {
             confirmModal.style.display = 'none';
             renderLoader();
+            if (!isVotingActive(allData)) {
+                alert("Voting has been paused. Your vote was not recorded.");
+                window.renderBackToPositions(isStaff);
+                return;
+            }
             const success = await castVote(candidateId, weight);
             if (success) {
                 const successModal = document.getElementById('success-modal');
@@ -860,6 +903,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.renderVoteView = renderStudentVotePositions;
     window.renderHomeView = renderDashboard;
+
+    let targetVotingState = null;
+
+    window.promptToggleVoting = function() {
+        const active = isVotingActive(allData);
+        targetVotingState = !active;
+        
+        const promptText = targetVotingState 
+            ? "Enter authorization credentials to resume the election voting." 
+            : "Enter authorization credentials to pause the election voting.";
+        
+        document.getElementById('voting-auth-prompt').textContent = promptText;
+        document.getElementById('voting-auth-id').value = '';
+        document.getElementById('voting-auth-password').value = '';
+        document.getElementById('voting-auth-error').style.display = 'none';
+        document.getElementById('voting-auth-modal').style.display = 'flex';
+    };
+
+    window.cancelVotingAuth = function() {
+        document.getElementById('voting-auth-modal').style.display = 'none';
+        targetVotingState = null;
+    };
+
+    window.handleVotingAuth = async function(event) {
+        event.preventDefault();
+        const idInput = document.getElementById('voting-auth-id');
+        const passInput = document.getElementById('voting-auth-password');
+        const errorMsg = document.getElementById('voting-auth-error');
+
+        const id = idInput.value.trim();
+        const password = passInput.value;
+
+        if (id === 'unit' && password === 'test') {
+            document.getElementById('voting-auth-modal').style.display = 'none';
+            renderLoader();
+            const success = await toggleVotingStatus(targetVotingState);
+            if (success) {
+                triggerRender();
+            } else {
+                alert("Failed to update voting status.");
+                triggerRender();
+            }
+            targetVotingState = null;
+        } else {
+            errorMsg.style.display = 'block';
+            passInput.value = '';
+            passInput.focus();
+        }
+    };
 
     // Run app!
     init();
