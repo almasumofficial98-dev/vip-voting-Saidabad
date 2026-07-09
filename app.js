@@ -261,12 +261,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             <strong style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); line-height: 1.1;">${positions.length}</strong>
                         </div>
                     </div>
-                    <button class="reset-db-btn" onclick="window.handleResetDatabase()" style="margin-top: 0; padding: 0.6rem 1.5rem;">
-                        <svg style="vertical-align: middle; margin-right: 0.5rem;" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Reset Database
-                    </button>
                 </div>
             </div>
 
@@ -588,35 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 2500);
             } else {
                 window.renderPosition(positionName, isStaff);
-            }
-        });
-    };
-
-    window.handleResetDatabase = function() {
-        const resetModal = document.getElementById('reset-modal');
-        const resetConfirmBtn = document.getElementById('reset-confirm-btn');
-        const resetCancelBtn = document.getElementById('reset-cancel-btn');
-
-        resetModal.style.display = 'flex';
-
-        const newConfirmBtn = resetConfirmBtn.cloneNode(true);
-        resetConfirmBtn.parentNode.replaceChild(newConfirmBtn, resetConfirmBtn);
-
-        const newCancelBtn = resetCancelBtn.cloneNode(true);
-        resetCancelBtn.parentNode.replaceChild(newCancelBtn, resetCancelBtn);
-
-        newCancelBtn.addEventListener('click', () => {
-            resetModal.style.display = 'none';
-        });
-
-        newConfirmBtn.addEventListener('click', async () => {
-            resetModal.style.display = 'none';
-            renderLoader();
-            const success = await resetAllVotes();
-            if (success) {
-                renderDashboard();
-            } else {
-                renderDashboard();
             }
         });
     };
