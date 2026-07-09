@@ -261,6 +261,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             <strong style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); line-height: 1.1;">${positions.length}</strong>
                         </div>
                     </div>
+                    <button class="download-pdf-btn" onclick="window.downloadVotesPDF()">
+                        <svg style="vertical-align: middle; margin-right: 0.5rem;" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Download PDF
+                    </button>
                 </div>
             </div>
 
@@ -584,6 +590,173 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.renderPosition(positionName, isStaff);
             }
         });
+    };
+
+    window.downloadVotesPDF = function() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        // Styles & Colors
+        const primaryColor = [168, 35, 41]; // Crimson Red
+        const secondaryColor = [55, 65, 81]; // Dark Gray
+        const textColor = [31, 41, 55]; // Gray-800
+        const lightGray = [243, 244, 246]; // Gray-100
+        const borderLight = [229, 231, 235]; // Gray-200
+
+        let y = 20;
+        const margin = 15;
+        const pageWidth = 210;
+        const pageHeight = 297;
+        const contentWidth = pageWidth - (margin * 2);
+
+        // Header Function
+        function drawHeader() {
+            // Subtle accent top bar
+            doc.setFillColor(...primaryColor);
+            doc.rect(0, 0, pageWidth, 5, 'F');
+
+            // Title
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(16);
+            doc.setTextColor(...primaryColor);
+            doc.text("VIP STUDENT COUNCIL ELECTIONS 2026-27", margin, 15);
+
+            // Subheader
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9.5);
+            doc.setTextColor(...secondaryColor);
+            doc.text("Official Live Election Results Report", margin, 20);
+
+            // Metadata info
+            const timestamp = new Date().toLocaleString();
+            const activeDB = (localStorage.getItem('vip_active_db') || 'firebase').toUpperCase();
+            doc.setFontSize(8);
+            doc.setTextColor(120, 130, 140);
+            doc.text(`Generated: ${timestamp}  |  Database Source: ${activeDB}`, margin, 25);
+
+            // Line Separator
+            doc.setDrawColor(...borderLight);
+            doc.setLineWidth(0.4);
+            doc.line(margin, 28, pageWidth - margin, 28);
+        }
+
+        // Footer Function
+        function drawFooter(pageNumber, totalPages) {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8);
+            doc.setTextColor(156, 163, 175);
+            
+            // Underline at bottom
+            doc.setDrawColor(...borderLight);
+            doc.setLineWidth(0.3);
+            doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
+            doc.text("© 2026 VIP Student Council. Official & Confidential.", margin, pageHeight - 10);
+            doc.text(`Page ${pageNumber} of ${totalPages}`, pageWidth - margin - 20, pageHeight - 10);
+        }
+
+        // Draw page 1 header
+        drawHeader();
+        y = 36;
+
+        const positions = CONFIG.POSITIONS_ORDER;
+
+        positions.forEach((pos, posIdx) => {
+            const posCandidates = allData
+                .filter(c => c.Position && c.Position.trim().toLowerCase() === pos.trim().toLowerCase())
+                .sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
+
+            // Estimate spacing needed for position block
+            const estimatedHeight = 10 + 6 + (posCandidates.length > 0 ? posCandidates.length * 6 : 8) + 8;
+
+            if (y + estimatedHeight > pageHeight - 20) {
+                doc.addPage();
+                drawHeader();
+                y = 36;
+            }
+
+            // Header Background Block
+            doc.setFillColor(...lightGray);
+            doc.rect(margin, y, contentWidth, 8, 'F');
+
+            // Header text
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10.5);
+            doc.setTextColor(...primaryColor);
+            doc.text(pos.toUpperCase(), margin + 3, y + 5.5);
+
+            // Total votes right-aligned
+            const totalPosVotes = posCandidates.reduce((sum, c) => sum + (c.voteCount || 0), 0);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8.5);
+            doc.setTextColor(...secondaryColor);
+            doc.text(`Total Votes: ${totalPosVotes}`, pageWidth - margin - 35, y + 5.5);
+
+            y += 11;
+
+            // Table headers
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(8.5);
+            doc.setTextColor(100, 110, 120);
+            doc.text("Candidate Name", margin + 3, y);
+            doc.text("Grade", margin + 100, y);
+            doc.text("Votes", margin + 130, y);
+            doc.text("Percentage", margin + 155, y);
+
+            y += 2;
+            doc.setDrawColor(...borderLight);
+            doc.setLineWidth(0.3);
+            doc.line(margin + 2, y, pageWidth - margin - 2, y);
+            y += 4.5;
+
+            if (posCandidates.length === 0) {
+                doc.setFont("helvetica", "italic");
+                doc.setFontSize(8.5);
+                doc.setTextColor(150, 150, 150);
+                doc.text("No candidates registered", margin + 3, y);
+                y += 6;
+            } else {
+                posCandidates.forEach((cand, candIdx) => {
+                    const isWinner = candIdx === 0 && cand.voteCount > 0;
+                    doc.setFont("helvetica", isWinner ? "bold" : "normal");
+                    doc.setFontSize(9);
+                    doc.setTextColor(...textColor);
+
+                    const displayName = cand.Name + (isWinner ? " (Leader)" : "");
+                    doc.text(displayName, margin + 3, y);
+                    doc.text(cand.Grade || "N/A", margin + 100, y);
+                    doc.text((cand.voteCount || 0).toString(), margin + 130, y);
+
+                    const pct = totalPosVotes > 0 ? Math.round((cand.voteCount / totalPosVotes) * 100) : 0;
+                    doc.text(`${pct}%`, margin + 155, y);
+
+                    if (candIdx < posCandidates.length - 1) {
+                        y += 2.5;
+                        doc.setDrawColor(...lightGray);
+                        doc.setLineWidth(0.2);
+                        doc.line(margin + 2, y, pageWidth - margin - 2, y);
+                        y += 4;
+                    } else {
+                        y += 4.5;
+                    }
+                });
+            }
+
+            y += 5; // Extra spacing after position
+        });
+
+        // Add page numbers at the end
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            drawFooter(i, totalPages);
+        }
+
+        doc.save("VIP_Elections_2026_Results.pdf");
     };
 
     window.handleLogin = function(event) {

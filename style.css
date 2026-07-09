@@ -743,3 +743,30 @@ footer {
     color: #64748b;
     border: 1px solid #e2e8f0;
 }
+
+.download-pdf-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+    color: white;
+    border: none;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.6rem 1.5rem;
+    border-radius: 99px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(168, 35, 41, 0.15);
+    margin-top: 0;
+}
+
+.download-pdf-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(168, 35, 41, 0.3);
+}
+
+.download-pdf-btn:active {
+    transform: scale(0.97);
+}
